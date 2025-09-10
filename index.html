@@ -5,9 +5,39 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Sistem Pasien - drg. Eka Pottimau</title>
     <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 </head>
-<body class="bg-blue-50 min-h-screen">
-    <div class="container mx-auto px-4 py-8 max-w-5xl">
+<body class="bg-blue-50 min-h-screen font-sans">
+
+    <!-- Login Modal -->
+    <div id="loginModal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+        <div class="bg-white rounded-xl p-6 max-w-sm mx-4 shadow-lg">
+            <h2 class="text-2xl font-bold text-center mb-6">🔐 Login</h2>
+            <form id="loginForm">
+                <div class="mb-4">
+                    <label class="block text-gray-700 mb-2">Username</label>
+                    <input type="text" id="username" placeholder="Masukkan username" required 
+                           class="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500">
+                </div>
+                <div class="mb-6">
+                    <label class="block text-gray-700 mb-2">Password</label>
+                    <input type="password" id="password" placeholder="Masukkan password" required 
+                           class="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500">
+                </div>
+                <button type="submit" class="w-full bg-blue-600 text-white py-2 rounded-lg hover:bg-blue-700">
+                    Masuk
+                </button>
+            </form>
+            <p class="text-center text-gray-500 mt-4">
+                Username: admin<br>
+                Password: 123456
+            </p>
+        </div>
+    </div>
+
+    <!-- Main App -->
+    <div id="app" class="hidden container mx-auto px-4 py-8 max-w-6xl">
         <!-- Header -->
         <div class="text-center mb-8">
             <h1 class="text-3xl font-bold text-gray-800 mb-2">🦷 Sistem Pasien</h1>
@@ -30,14 +60,17 @@
 
         <!-- Patients View -->
         <div id="patientsView" class="bg-white rounded-xl shadow p-6">
-            <!-- Search -->
-            <div class="mb-4">
+
+            <!-- Search & Filter -->
+            <div class="grid grid-cols-1 md:grid-cols-4 gap-3 mb-6">
                 <input type="text" id="searchInput" placeholder="Cari pasien..." 
-                       class="w-full px-4 py-2 border rounded-lg" oninput="searchPatients()">
+                       class="col-span-1 md:col-span-2 px-4 py-2 border rounded-lg" oninput="searchPatients()">
+                <input type="date" id="filterFrom" class="px-4 py-2 border rounded-lg" onchange="filterByDate()">
+                <input type="date" id="filterTo" class="px-4 py-2 border rounded-lg" onchange="filterByDate()">
             </div>
 
             <!-- Stats -->
-            <div class="grid grid-cols-2 gap-4 mb-6">
+            <div class="grid grid-cols-2 md:grid-cols-5 gap-4 mb-6">
                 <div class="bg-blue-50 rounded-lg p-4 text-center">
                     <div class="text-xl font-bold text-blue-600" id="totalPatients">0</div>
                     <div class="text-sm text-blue-700">Total Pasien</div>
@@ -46,6 +79,42 @@
                     <div class="text-xl font-bold text-green-600" id="totalVisits">0</div>
                     <div class="text-sm text-green-700">Total Kunjungan</div>
                 </div>
+                <div class="bg-purple-50 rounded-lg p-4 text-center">
+                    <div class="text-xl font-bold text-purple-600" id="todayVisits">0</div>
+                    <div class="text-sm text-purple-700">Hari Ini</div>
+                </div>
+                <div class="bg-orange-50 rounded-lg p-4 text-center">
+                    <div class="text-xl font-bold text-orange-600" id="thisMonthVisits">0</div>
+                    <div class="text-sm text-orange-700">Bulan Ini</div>
+                </div>
+                <div class="bg-teal-50 rounded-lg p-4 text-center">
+                    <div class="text-xl font-bold text-teal-600" id="thisYearVisits">0</div>
+                    <div class="text-sm text-teal-700">Tahun Ini</div>
+                </div>
+            </div>
+
+            <!-- New vs Returning -->
+            <div class="grid grid-cols-2 gap-4 mb-6 bg-gray-50 p-4 rounded-lg">
+                <div class="text-center">
+                    <div class="font-bold text-green-600" id="newPatients">0</div>
+                    <div class="text-sm text-gray-600">Pasien Baru</div>
+                </div>
+                <div class="text-center">
+                    <div class="font-bold text-blue-600" id="returningPatients">0</div>
+                    <div class="text-sm text-gray-600">Pasien Lama</div>
+                </div>
+            </div>
+
+            <!-- Chart -->
+            <div class="mb-6">
+                <canvas id="visitChart" class="w-full h-64"></canvas>
+            </div>
+
+            <!-- Export Button -->
+            <div class="mb-6 text-center">
+                <button onclick="exportToExcel()" class="bg-green-600 text-white px-6 py-2 rounded-lg hover:bg-green-700">
+                    📥 Ekspor ke Excel
+                </button>
             </div>
 
             <!-- Patients List -->
@@ -88,6 +157,10 @@
                 <button type="submit" class="w-full bg-blue-600 text-white py-2 rounded-lg hover:bg-blue-700">
                     💾 Simpan Pasien
                 </button>
+                <button type="button" onclick="showView('patients')" 
+                        class="w-full bg-gray-500 text-white py-2 rounded-lg">
+                    Batal
+                </button>
             </form>
         </div>
 
@@ -108,9 +181,9 @@
                     <p><strong>Total Kunjungan:</strong> <span id="modalTotal"></span></p>
                 </div>
 
-                <!-- Add/Edit Visit Form -->
+                <!-- Add Visit Form -->
                 <div class="mb-4 bg-blue-50 rounded-lg p-4">
-                    <h4 class="font-bold mb-2" id="visitFormTitle">➕ Tambah Kunjungan</h4>
+                    <h4 class="font-bold mb-2">➕ Tambah Kunjungan</h4>
                     <form id="visitForm" class="space-y-3">
                         <textarea id="visitComplaint" placeholder="Keluhan" required rows="2"
                                   class="w-full px-3 py-2 border rounded"></textarea>
@@ -122,22 +195,16 @@
                             <textarea id="visitNotes" placeholder="Catatan" rows="2"
                                       class="px-3 py-2 border rounded"></textarea>
                         </div>
-                        <div class="flex gap-2">
-                            <button type="submit" class="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700">
-                                💾 Simpan Kunjungan
-                            </button>
-                            <button type="button" id="cancelEditBtn" onclick="cancelEditVisit()" 
-                                    class="hidden bg-gray-500 text-white px-4 py-2 rounded hover:bg-gray-600">
-                                Batal
-                            </button>
-                        </div>
+                        <button type="submit" class="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700">
+                            💾 Simpan Kunjungan
+                        </button>
                     </form>
                 </div>
 
                 <!-- Visit History -->
                 <div>
                     <h4 class="font-bold mb-2">📋 Riwayat Kunjungan</h4>
-                    <div id="visitHistory" class="space-y-2 max-h-60 overflow-y-auto"></div>
+                    <div id="visitHistory" class="space-y-2 max-h-40 overflow-y-auto"></div>
                 </div>
             </div>
         </div>
@@ -163,7 +230,27 @@
     </div>
 
     <script>
-        let patients = [
+        // === LOGIN ===
+        const loginForm = document.getElementById('loginForm');
+        const loginModal = document.getElementById('loginModal');
+        const app = document.getElementById('app');
+
+        loginForm.addEventListener('submit', function(e) {
+            e.preventDefault();
+            const username = document.getElementById('username').value;
+            const password = document.getElementById('password').value;
+
+            if (username === 'admin' && password === '123456') {
+                loginModal.classList.add('hidden');
+                app.classList.remove('hidden');
+                init();
+            } else {
+                alert('Username atau password salah!');
+            }
+        });
+
+        // === DATA ===
+        let patients = JSON.parse(localStorage.getItem('dentalPatients')) || [
             {
                 id: 1,
                 name: "Sari Wijaya",
@@ -173,13 +260,7 @@
                 address: "Jl. Merdeka No. 15, Ambon",
                 medicalHistory: "Diabetes tipe 2, alergi penisilin",
                 visits: [
-                    {
-                        date: "2024-01-15",
-                        complaint: "Sakit gigi geraham kiri",
-                        treatment: "Pembersihan karang gigi dan tambal gigi",
-                        medication: "Asam Mefenamat 500mg 3x1",
-                        notes: "Hindari makanan keras"
-                    }
+                    { date: "2024-01-15", complaint: "Sakit gigi", treatment: "Tambal", medication: "Asam Mefenamat", notes: "" }
                 ]
             },
             {
@@ -191,26 +272,23 @@
                 address: "Jl. Pattimura No. 23, Ambon",
                 medicalHistory: "",
                 visits: [
-                    {
-                        date: "2024-01-12",
-                        complaint: "Gigi berlubang",
-                        treatment: "Tambal gigi dengan resin komposit",
-                        medication: "Ibuprofen 400mg bila sakit",
-                        notes: "Jangan mengunyah 2 jam"
-                    }
+                    { date: "2024-01-12", complaint: "Gigi berlubang", treatment: "Tambal resin", medication: "", notes: "" }
                 ]
             }
         ];
 
-        let currentPatientId = null;
-        let currentVisitIndex = null; // Untuk edit kunjungan
-        let deletePatientId = null;
+        function savePatients() {
+            localStorage.setItem('dentalPatients', JSON.stringify(patients));
+        }
 
+        // === INIT ===
         function init() {
             displayPatients();
             updateStats();
+            initChart();
         }
 
+        // === NAVIGATION ===
         function showView(view) {
             document.getElementById('patientsView').classList.toggle('hidden', view !== 'patients');
             document.getElementById('addView').classList.toggle('hidden', view !== 'add');
@@ -223,6 +301,7 @@
                 : 'px-4 py-2 rounded font-medium text-gray-600';
         }
 
+        // === DISPLAY ===
         function displayPatients(filtered = null) {
             const list = document.getElementById('patientsList');
             const patientsToShow = filtered || patients;
@@ -253,22 +332,98 @@
 
         function searchPatients() {
             const term = document.getElementById('searchInput').value.toLowerCase();
-            if (!term) {
-                displayPatients();
-                return;
-            }
+            if (!term) return displayPatients();
             const filtered = patients.filter(p => 
                 p.name.toLowerCase().includes(term) || p.phone.includes(term)
             );
             displayPatients(filtered);
         }
 
-        function updateStats() {
-            document.getElementById('totalPatients').textContent = patients.length;
-            document.getElementById('totalVisits').textContent = 
-                patients.reduce((sum, p) => sum + p.visits.length, 0);
+        function filterByDate() {
+            const from = document.getElementById('filterFrom').value;
+            const to = document.getElementById('filterTo').value;
+            if (!from || !to) return displayPatients();
+
+            const filtered = patients.filter(p =>
+                p.visits.some(v => v.date >= from && v.date <= to)
+            );
+            displayPatients(filtered);
         }
 
+        // === STATS ===
+        function updateStats() {
+            const now = new Date();
+            const today = now.toISOString().split('T')[0];
+            const currentMonth = today.slice(0, 7);
+            const currentYear = now.getFullYear();
+
+            let todayCount = 0, monthCount = 0, yearCount = 0;
+            let newPatientCount = 0, returningPatientCount = 0;
+
+            patients.forEach(p => {
+                p.visits.forEach(v => {
+                    if (v.date === today) todayCount++;
+                    if (v.date.startsWith(currentMonth)) monthCount++;
+                    if (new Date(v.date).getFullYear() === currentYear) yearCount++;
+                });
+
+                const firstVisit = new Date(p.visits[0].date);
+                if (firstVisit >= new Date(now.getFullYear(), now.getMonth() - 1)) {
+                    newPatientCount++;
+                } else {
+                    returningPatientCount++;
+                }
+            });
+
+            document.getElementById('totalPatients').textContent = patients.length;
+            document.getElementById('totalVisits').textContent = patients.reduce((a, p) => a + p.visits.length, 0);
+            document.getElementById('todayVisits').textContent = todayCount;
+            document.getElementById('thisMonthVisits').textContent = monthCount;
+            document.getElementById('thisYearVisits').textContent = yearCount;
+            document.getElementById('newPatients').textContent = newPatientCount;
+            document.getElementById('returningPatients').textContent = returningPatientCount;
+
+            updateChart();
+        }
+
+        // === CHART ===
+        let visitChart = null;
+        function initChart() {
+            const ctx = document.getElementById('visitChart').getContext('2d');
+            const labels = Array.from({length: 7}, (_, i) => {
+                const d = new Date();
+                d.setDate(d.getDate() - 6 + i);
+                return d.toISOString().split('T')[0];
+            });
+
+            visitChart = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        label: 'Kunjungan Harian',
+                        data: labels.map(date => 
+                            patients.reduce((sum, p) => sum + p.visits.filter(v => v.date === date).length, 0)
+                        ),
+                        backgroundColor: 'rgba(59, 130, 246, 0.6)'
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    scales: { y: { beginAtZero: true } }
+                }
+            });
+        }
+
+        function updateChart() {
+            const labels = visitChart.data.labels;
+            visitChart.data.datasets[0].data = labels.map(date => 
+                patients.reduce((sum, p) => sum + p.visits.filter(v => v.date === date).length, 0)
+            );
+            visitChart.update();
+        }
+
+        // === ADD PATIENT ===
         document.getElementById('addForm').addEventListener('submit', function(e) {
             e.preventDefault();
             
@@ -294,8 +449,10 @@
             showView('patients');
             displayPatients();
             updateStats();
+            savePatients();
         });
 
+        // === MODAL ===
         function openModal(patientId) {
             const patient = patients.find(p => p.id === patientId);
             if (!patient) return;
@@ -310,17 +467,8 @@
             document.getElementById('modalTotal').textContent = patient.visits.length;
             
             displayVisitHistory(patient.visits);
-            resetVisitForm(); // Reset form kunjungan
             document.getElementById('modal').classList.remove('hidden');
             document.getElementById('modal').classList.add('flex');
-        }
-
-        function resetVisitForm() {
-            const form = document.getElementById('visitForm');
-            form.reset();
-            currentVisitIndex = null;
-            document.getElementById('visitFormTitle').textContent = '➕ Tambah Kunjungan';
-            document.getElementById('cancelEditBtn').classList.add('hidden');
         }
 
         function displayVisitHistory(visits) {
@@ -330,12 +478,8 @@
                 return;
             }
 
-            history.innerHTML = visits.map((visit, index) => `
-                <div class="bg-gray-50 rounded p-3 text-sm relative">
-                    <div class="absolute top-1 right-1 space-x-1">
-                        <button onclick="editVisit(${currentPatientId}, ${index})" 
-                                class="text-blue-600 text-xs hover:underline">✎</button>
-                    </div>
+            history.innerHTML = visits.map(visit => `
+                <div class="bg-gray-50 rounded p-3 text-sm">
                     <p><strong>📅 ${visit.date}</strong></p>
                     <p><strong>Keluhan:</strong> ${visit.complaint}</p>
                     <p><strong>Treatment:</strong> ${visit.treatment}</p>
@@ -345,27 +489,6 @@
             `).join('');
         }
 
-        function editVisit(patientId, index) {
-            const patient = patients.find(p => p.id === patientId);
-            if (!patient || !patient.visits[index]) return;
-
-            currentVisitIndex = index;
-            const visit = patient.visits[index];
-
-            // Isi form dengan data kunjungan
-            document.getElementById('visitComplaint').value = visit.complaint;
-            document.getElementById('visitTreatment').value = visit.treatment;
-            document.getElementById('visitMedication').value = visit.medication || '';
-            document.getElementById('visitNotes').value = visit.notes || '';
-
-            document.getElementById('visitFormTitle').textContent = '✏️ Edit Kunjungan';
-            document.getElementById('cancelEditBtn').classList.remove('hidden');
-        }
-
-        function cancelEditVisit() {
-            resetVisitForm();
-        }
-
         document.getElementById('visitForm').addEventListener('submit', function(e) {
             e.preventDefault();
             
@@ -373,34 +496,28 @@
             if (!patient) return;
 
             const newVisit = {
-                date: currentVisitIndex === null ? new Date().toISOString().split('T')[0] : patient.visits[currentVisitIndex].date,
+                date: new Date().toISOString().split('T')[0],
                 complaint: document.getElementById('visitComplaint').value,
                 treatment: document.getElementById('visitTreatment').value,
                 medication: document.getElementById('visitMedication').value,
                 notes: document.getElementById('visitNotes').value
             };
 
-            if (currentVisitIndex === null) {
-                // Tambah baru
-                patient.visits.unshift(newVisit);
-            } else {
-                // Edit
-                patient.visits[currentVisitIndex] = newVisit;
-            }
-
+            patient.visits.unshift(newVisit);
             document.getElementById('modalTotal').textContent = patient.visits.length;
             displayVisitHistory(patient.visits);
-            resetVisitForm();
+            this.reset();
             displayPatients();
             updateStats();
+            savePatients();
         });
 
         function closeModal() {
             document.getElementById('modal').classList.add('hidden');
             document.getElementById('modal').classList.remove('flex');
-            resetVisitForm();
         }
 
+        // === DELETE ===
         function deletePatient(patientId) {
             const patient = patients.find(p => p.id === patientId);
             if (!patient) return;
@@ -422,11 +539,39 @@
                 patients.splice(index, 1);
                 displayPatients();
                 updateStats();
+                savePatients();
             }
             closeDeleteModal();
         }
 
-        // Close modals on outside click
+        // === EXPORT TO EXCEL ===
+        function exportToExcel() {
+            const data = [];
+            patients.forEach(p => {
+                p.visits.forEach(v => {
+                    data.push({
+                        "Nama": p.name,
+                        "Telepon": p.phone,
+                        "Umur": p.age,
+                        "Jenis Kelamin": p.gender,
+                        "Alamat": p.address,
+                        "Riwayat Sakit": p.medicalHistory,
+                        "Tanggal Kunjungan": v.date,
+                        "Keluhan": v.complaint,
+                        "Treatment": v.treatment,
+                        "Obat": v.medication,
+                        "Catatan": v.notes
+                    });
+                });
+            });
+
+            const ws = XLSX.utils.json_to_sheet(data);
+            const wb = XLSX.utils.book_new();
+            XLSX.utils.book_append_sheet(wb, ws, "Data Pasien");
+            XLSX.writeFile(wb, `Laporan_Pasien_${new Date().toISOString().slice(0,10)}.xlsx`);
+        }
+
+        // === CLOSE MODALS ===
         document.getElementById('modal').addEventListener('click', function(e) {
             if (e.target === this) closeModal();
         });
@@ -434,8 +579,6 @@
         document.getElementById('deleteModal').addEventListener('click', function(e) {
             if (e.target === this) closeDeleteModal();
         });
-
-        init();
     </script>
 </body>
 </html>
