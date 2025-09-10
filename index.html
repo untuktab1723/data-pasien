@@ -52,9 +52,9 @@
             <div id="patientsList"></div>
         </div>
 
-        <!-- Add Patient View -->
+        <!-- Add/Edit Patient View -->
         <div id="addView" class="bg-white rounded-xl shadow p-6 hidden">
-            <h2 class="text-xl font-bold mb-4">➕ Tambah Pasien Baru</h2>
+            <h2 class="text-xl font-bold mb-4" id="addFormTitle">➕ Tambah Pasien Baru</h2>
             <form id="addForm" class="space-y-4">
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <input type="text" id="name" placeholder="Nama Lengkap" required 
@@ -88,6 +88,10 @@
                 <button type="submit" class="w-full bg-blue-600 text-white py-2 rounded-lg hover:bg-blue-700">
                     💾 Simpan Pasien
                 </button>
+                <button type="button" onclick="showView('patients')" 
+                        class="w-full bg-gray-500 text-white py-2 rounded-lg">
+                    Batal
+                </button>
             </form>
         </div>
 
@@ -106,6 +110,14 @@
                     <p><strong>📍 Alamat:</strong> <span id="modalAddress"></span></p>
                     <p><strong>🏥 Riwayat Sakit:</strong> <span id="modalMedicalHistory"></span></p>
                     <p><strong>Total Kunjungan:</strong> <span id="modalTotal"></span></p>
+                </div>
+
+                <!-- Edit Button -->
+                <div class="mb-4">
+                    <button onclick="openEditModal(currentPatientId)" 
+                            class="bg-yellow-500 text-white px-4 py-2 rounded hover:bg-yellow-600 mr-2">
+                        ✏️ Edit Pasien
+                    </button>
                 </div>
 
                 <!-- Add Visit Form -->
@@ -198,6 +210,7 @@
 
         let currentPatientId = null;
         let deletePatientId = null;
+        let currentEditId = null; // Untuk edit
 
         function init() {
             displayPatients();
@@ -214,6 +227,12 @@
             document.getElementById('addBtn').className = view === 'add' 
                 ? 'px-4 py-2 rounded font-medium bg-blue-600 text-white'
                 : 'px-4 py-2 rounded font-medium text-gray-600';
+
+            if (view === 'add') {
+                document.getElementById('addFormTitle').textContent = '➕ Tambah Pasien Baru';
+                document.getElementById('addForm').reset();
+                currentEditId = null;
+            }
         }
 
         function displayPatients(filtered = null) {
@@ -262,27 +281,42 @@
                 patients.reduce((sum, p) => sum + p.visits.length, 0);
         }
 
+        // Form Tambah/Edit
         document.getElementById('addForm').addEventListener('submit', function(e) {
             e.preventDefault();
             
-            const newPatient = {
-                id: Date.now(),
+            const data = {
                 name: document.getElementById('name').value,
                 phone: document.getElementById('phone').value,
                 age: parseInt(document.getElementById('age').value),
                 gender: document.getElementById('gender').value,
                 address: document.getElementById('address').value,
                 medicalHistory: document.getElementById('medicalHistory').value,
-                visits: [{
-                    date: new Date().toISOString().split('T')[0],
-                    complaint: document.getElementById('complaint').value,
-                    treatment: document.getElementById('treatment').value,
-                    medication: document.getElementById('medication').value,
-                    notes: document.getElementById('notes').value
-                }]
             };
 
-            patients.unshift(newPatient);
+            const visit = {
+                date: new Date().toISOString().split('T')[0],
+                complaint: document.getElementById('complaint').value,
+                treatment: document.getElementById('treatment').value,
+                medication: document.getElementById('medication').value,
+                notes: document.getElementById('notes').value
+            };
+
+            if (currentEditId) {
+                // Update
+                const patient = patients.find(p => p.id === currentEditId);
+                Object.assign(patient, data);
+                patient.visits.unshift(visit);
+            } else {
+                // Tambah baru
+                const newPatient = {
+                    id: Date.now(),
+                    ...data,
+                    visits: [visit]
+                };
+                patients.unshift(newPatient);
+            }
+
             this.reset();
             showView('patients');
             displayPatients();
@@ -305,6 +339,27 @@
             displayVisitHistory(patient.visits);
             document.getElementById('modal').classList.remove('hidden');
             document.getElementById('modal').classList.add('flex');
+        }
+
+        function openEditModal(patientId) {
+            const patient = patients.find(p => p.id === patientId);
+            if (!patient) return;
+
+            currentEditId = patientId;
+            showView('add');
+            document.getElementById('addFormTitle').textContent = '✏️ Edit Pasien';
+
+            // Isi form dengan data pasien
+            document.getElementById('name').value = patient.name;
+            document.getElementById('phone').value = patient.phone;
+            document.getElementById('age').value = patient.age;
+            document.getElementById('gender').value = patient.gender;
+            document.getElementById('address').value = patient.address;
+            document.getElementById('medicalHistory').value = patient.medicalHistory || '';
+            document.getElementById('complaint').value = '';
+            document.getElementById('treatment').value = '';
+            document.getElementById('medication').value = '';
+            document.getElementById('notes').value = '';
         }
 
         function displayVisitHistory(visits) {
@@ -388,5 +443,5 @@
 
         init();
     </script>
-<script>(function(){function c(){var b=a.contentDocument||a.contentWindow.document;if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'97cde1d4719fa082',t:'MTc1NzQ5NjM2OS4wMDAwMDA='};var a=document.createElement('script');a.nonce='';a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
+</body>
 </html>
