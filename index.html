@@ -52,9 +52,9 @@
             <div id="patientsList"></div>
         </div>
 
-        <!-- Add/Edit Patient View -->
+        <!-- Add Patient View -->
         <div id="addView" class="bg-white rounded-xl shadow p-6 hidden">
-            <h2 class="text-xl font-bold mb-4" id="addFormTitle">➕ Tambah Pasien Baru</h2>
+            <h2 class="text-xl font-bold mb-4">➕ Tambah Pasien Baru</h2>
             <form id="addForm" class="space-y-4">
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <input type="text" id="name" placeholder="Nama Lengkap" required 
@@ -88,10 +88,6 @@
                 <button type="submit" class="w-full bg-blue-600 text-white py-2 rounded-lg hover:bg-blue-700">
                     💾 Simpan Pasien
                 </button>
-                <button type="button" onclick="showView('patients')" 
-                        class="w-full bg-gray-500 text-white py-2 rounded-lg">
-                    Batal
-                </button>
             </form>
         </div>
 
@@ -112,17 +108,9 @@
                     <p><strong>Total Kunjungan:</strong> <span id="modalTotal"></span></p>
                 </div>
 
-                <!-- Edit Button -->
-                <div class="mb-4">
-                    <button onclick="openEditModal(currentPatientId)" 
-                            class="bg-yellow-500 text-white px-4 py-2 rounded hover:bg-yellow-600 mr-2">
-                        ✏️ Edit Pasien
-                    </button>
-                </div>
-
-                <!-- Add Visit Form -->
+                <!-- Add/Edit Visit Form -->
                 <div class="mb-4 bg-blue-50 rounded-lg p-4">
-                    <h4 class="font-bold mb-2">➕ Tambah Kunjungan</h4>
+                    <h4 class="font-bold mb-2" id="visitFormTitle">➕ Tambah Kunjungan</h4>
                     <form id="visitForm" class="space-y-3">
                         <textarea id="visitComplaint" placeholder="Keluhan" required rows="2"
                                   class="w-full px-3 py-2 border rounded"></textarea>
@@ -134,16 +122,22 @@
                             <textarea id="visitNotes" placeholder="Catatan" rows="2"
                                       class="px-3 py-2 border rounded"></textarea>
                         </div>
-                        <button type="submit" class="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700">
-                            💾 Simpan Kunjungan
-                        </button>
+                        <div class="flex gap-2">
+                            <button type="submit" class="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700">
+                                💾 Simpan Kunjungan
+                            </button>
+                            <button type="button" id="cancelEditBtn" onclick="cancelEditVisit()" 
+                                    class="hidden bg-gray-500 text-white px-4 py-2 rounded hover:bg-gray-600">
+                                Batal
+                            </button>
+                        </div>
                     </form>
                 </div>
 
                 <!-- Visit History -->
                 <div>
                     <h4 class="font-bold mb-2">📋 Riwayat Kunjungan</h4>
-                    <div id="visitHistory" class="space-y-2 max-h-40 overflow-y-auto"></div>
+                    <div id="visitHistory" class="space-y-2 max-h-60 overflow-y-auto"></div>
                 </div>
             </div>
         </div>
@@ -209,8 +203,8 @@
         ];
 
         let currentPatientId = null;
+        let currentVisitIndex = null; // Untuk edit kunjungan
         let deletePatientId = null;
-        let currentEditId = null; // Untuk edit
 
         function init() {
             displayPatients();
@@ -227,12 +221,6 @@
             document.getElementById('addBtn').className = view === 'add' 
                 ? 'px-4 py-2 rounded font-medium bg-blue-600 text-white'
                 : 'px-4 py-2 rounded font-medium text-gray-600';
-
-            if (view === 'add') {
-                document.getElementById('addFormTitle').textContent = '➕ Tambah Pasien Baru';
-                document.getElementById('addForm').reset();
-                currentEditId = null;
-            }
         }
 
         function displayPatients(filtered = null) {
@@ -281,42 +269,27 @@
                 patients.reduce((sum, p) => sum + p.visits.length, 0);
         }
 
-        // Form Tambah/Edit
         document.getElementById('addForm').addEventListener('submit', function(e) {
             e.preventDefault();
             
-            const data = {
+            const newPatient = {
+                id: Date.now(),
                 name: document.getElementById('name').value,
                 phone: document.getElementById('phone').value,
                 age: parseInt(document.getElementById('age').value),
                 gender: document.getElementById('gender').value,
                 address: document.getElementById('address').value,
                 medicalHistory: document.getElementById('medicalHistory').value,
+                visits: [{
+                    date: new Date().toISOString().split('T')[0],
+                    complaint: document.getElementById('complaint').value,
+                    treatment: document.getElementById('treatment').value,
+                    medication: document.getElementById('medication').value,
+                    notes: document.getElementById('notes').value
+                }]
             };
 
-            const visit = {
-                date: new Date().toISOString().split('T')[0],
-                complaint: document.getElementById('complaint').value,
-                treatment: document.getElementById('treatment').value,
-                medication: document.getElementById('medication').value,
-                notes: document.getElementById('notes').value
-            };
-
-            if (currentEditId) {
-                // Update
-                const patient = patients.find(p => p.id === currentEditId);
-                Object.assign(patient, data);
-                patient.visits.unshift(visit);
-            } else {
-                // Tambah baru
-                const newPatient = {
-                    id: Date.now(),
-                    ...data,
-                    visits: [visit]
-                };
-                patients.unshift(newPatient);
-            }
-
+            patients.unshift(newPatient);
             this.reset();
             showView('patients');
             displayPatients();
@@ -337,29 +310,17 @@
             document.getElementById('modalTotal').textContent = patient.visits.length;
             
             displayVisitHistory(patient.visits);
+            resetVisitForm(); // Reset form kunjungan
             document.getElementById('modal').classList.remove('hidden');
             document.getElementById('modal').classList.add('flex');
         }
 
-        function openEditModal(patientId) {
-            const patient = patients.find(p => p.id === patientId);
-            if (!patient) return;
-
-            currentEditId = patientId;
-            showView('add');
-            document.getElementById('addFormTitle').textContent = '✏️ Edit Pasien';
-
-            // Isi form dengan data pasien
-            document.getElementById('name').value = patient.name;
-            document.getElementById('phone').value = patient.phone;
-            document.getElementById('age').value = patient.age;
-            document.getElementById('gender').value = patient.gender;
-            document.getElementById('address').value = patient.address;
-            document.getElementById('medicalHistory').value = patient.medicalHistory || '';
-            document.getElementById('complaint').value = '';
-            document.getElementById('treatment').value = '';
-            document.getElementById('medication').value = '';
-            document.getElementById('notes').value = '';
+        function resetVisitForm() {
+            const form = document.getElementById('visitForm');
+            form.reset();
+            currentVisitIndex = null;
+            document.getElementById('visitFormTitle').textContent = '➕ Tambah Kunjungan';
+            document.getElementById('cancelEditBtn').classList.add('hidden');
         }
 
         function displayVisitHistory(visits) {
@@ -369,8 +330,12 @@
                 return;
             }
 
-            history.innerHTML = visits.map(visit => `
-                <div class="bg-gray-50 rounded p-3 text-sm">
+            history.innerHTML = visits.map((visit, index) => `
+                <div class="bg-gray-50 rounded p-3 text-sm relative">
+                    <div class="absolute top-1 right-1 space-x-1">
+                        <button onclick="editVisit(${currentPatientId}, ${index})" 
+                                class="text-blue-600 text-xs hover:underline">✎</button>
+                    </div>
                     <p><strong>📅 ${visit.date}</strong></p>
                     <p><strong>Keluhan:</strong> ${visit.complaint}</p>
                     <p><strong>Treatment:</strong> ${visit.treatment}</p>
@@ -380,6 +345,27 @@
             `).join('');
         }
 
+        function editVisit(patientId, index) {
+            const patient = patients.find(p => p.id === patientId);
+            if (!patient || !patient.visits[index]) return;
+
+            currentVisitIndex = index;
+            const visit = patient.visits[index];
+
+            // Isi form dengan data kunjungan
+            document.getElementById('visitComplaint').value = visit.complaint;
+            document.getElementById('visitTreatment').value = visit.treatment;
+            document.getElementById('visitMedication').value = visit.medication || '';
+            document.getElementById('visitNotes').value = visit.notes || '';
+
+            document.getElementById('visitFormTitle').textContent = '✏️ Edit Kunjungan';
+            document.getElementById('cancelEditBtn').classList.remove('hidden');
+        }
+
+        function cancelEditVisit() {
+            resetVisitForm();
+        }
+
         document.getElementById('visitForm').addEventListener('submit', function(e) {
             e.preventDefault();
             
@@ -387,17 +373,24 @@
             if (!patient) return;
 
             const newVisit = {
-                date: new Date().toISOString().split('T')[0],
+                date: currentVisitIndex === null ? new Date().toISOString().split('T')[0] : patient.visits[currentVisitIndex].date,
                 complaint: document.getElementById('visitComplaint').value,
                 treatment: document.getElementById('visitTreatment').value,
                 medication: document.getElementById('visitMedication').value,
                 notes: document.getElementById('visitNotes').value
             };
 
-            patient.visits.unshift(newVisit);
+            if (currentVisitIndex === null) {
+                // Tambah baru
+                patient.visits.unshift(newVisit);
+            } else {
+                // Edit
+                patient.visits[currentVisitIndex] = newVisit;
+            }
+
             document.getElementById('modalTotal').textContent = patient.visits.length;
             displayVisitHistory(patient.visits);
-            this.reset();
+            resetVisitForm();
             displayPatients();
             updateStats();
         });
@@ -405,6 +398,7 @@
         function closeModal() {
             document.getElementById('modal').classList.add('hidden');
             document.getElementById('modal').classList.remove('flex');
+            resetVisitForm();
         }
 
         function deletePatient(patientId) {
