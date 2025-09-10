@@ -1,0 +1,392 @@
+<meta name='viewport' content='width=device-width, initial-scale=1'/><!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sistem Pasien - drg. Eka Pottimau</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-blue-50 min-h-screen">
+    <div class="container mx-auto px-4 py-8 max-w-5xl">
+        <!-- Header -->
+        <div class="text-center mb-8">
+            <h1 class="text-3xl font-bold text-gray-800 mb-2">🦷 Sistem Pasien</h1>
+            <p class="text-gray-600">drg. Eka Pottimau, M. Kes</p>
+        </div>
+
+        <!-- Navigation -->
+        <div class="flex justify-center mb-6">
+            <div class="bg-white rounded-lg p-1 shadow">
+                <button id="patientsBtn" onclick="showView('patients')" 
+                        class="px-4 py-2 rounded font-medium bg-blue-600 text-white">
+                    👥 Daftar Pasien
+                </button>
+                <button id="addBtn" onclick="showView('add')" 
+                        class="px-4 py-2 rounded font-medium text-gray-600">
+                    ➕ Tambah Pasien
+                </button>
+            </div>
+        </div>
+
+        <!-- Patients View -->
+        <div id="patientsView" class="bg-white rounded-xl shadow p-6">
+            <!-- Search -->
+            <div class="mb-4">
+                <input type="text" id="searchInput" placeholder="Cari pasien..." 
+                       class="w-full px-4 py-2 border rounded-lg" oninput="searchPatients()">
+            </div>
+
+            <!-- Stats -->
+            <div class="grid grid-cols-2 gap-4 mb-6">
+                <div class="bg-blue-50 rounded-lg p-4 text-center">
+                    <div class="text-xl font-bold text-blue-600" id="totalPatients">0</div>
+                    <div class="text-sm text-blue-700">Total Pasien</div>
+                </div>
+                <div class="bg-green-50 rounded-lg p-4 text-center">
+                    <div class="text-xl font-bold text-green-600" id="totalVisits">0</div>
+                    <div class="text-sm text-green-700">Total Kunjungan</div>
+                </div>
+            </div>
+
+            <!-- Patients List -->
+            <div id="patientsList"></div>
+        </div>
+
+        <!-- Add Patient View -->
+        <div id="addView" class="bg-white rounded-xl shadow p-6 hidden">
+            <h2 class="text-xl font-bold mb-4">➕ Tambah Pasien Baru</h2>
+            <form id="addForm" class="space-y-4">
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <input type="text" id="name" placeholder="Nama Lengkap" required 
+                           class="px-4 py-2 border rounded-lg">
+                    <input type="tel" id="phone" placeholder="Nomor Telepon" required 
+                           class="px-4 py-2 border rounded-lg">
+                </div>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <input type="number" id="age" placeholder="Umur" required min="1" max="120"
+                           class="px-4 py-2 border rounded-lg">
+                    <select id="gender" required class="px-4 py-2 border rounded-lg">
+                        <option value="">Pilih Jenis Kelamin</option>
+                        <option value="Laki-laki">👨 Laki-laki</option>
+                        <option value="Perempuan">👩 Perempuan</option>
+                    </select>
+                </div>
+                <textarea id="address" placeholder="Alamat" required rows="2"
+                          class="w-full px-4 py-2 border rounded-lg"></textarea>
+                <textarea id="medicalHistory" placeholder="Riwayat Sakit Bawaan (diabetes, hipertensi, alergi obat, dll)" rows="2"
+                          class="w-full px-4 py-2 border rounded-lg"></textarea>
+                <textarea id="complaint" placeholder="Keluhan" required rows="2"
+                          class="w-full px-4 py-2 border rounded-lg"></textarea>
+                <textarea id="treatment" placeholder="Treatment/Tindakan" required rows="2"
+                          class="w-full px-4 py-2 border rounded-lg"></textarea>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <textarea id="medication" placeholder="Obat (opsional)" rows="2"
+                              class="px-4 py-2 border rounded-lg"></textarea>
+                    <textarea id="notes" placeholder="Catatan (opsional)" rows="2"
+                              class="px-4 py-2 border rounded-lg"></textarea>
+                </div>
+                <button type="submit" class="w-full bg-blue-600 text-white py-2 rounded-lg hover:bg-blue-700">
+                    💾 Simpan Pasien
+                </button>
+            </form>
+        </div>
+
+        <!-- Patient Modal -->
+        <div id="modal" class="fixed inset-0 bg-black bg-opacity-50 hidden items-center justify-center z-50">
+            <div class="bg-white rounded-xl p-6 max-w-3xl mx-4 max-h-[90vh] overflow-y-auto">
+                <div class="flex justify-between items-center mb-4">
+                    <h3 class="text-xl font-bold" id="modalName">Detail Pasien</h3>
+                    <button onclick="closeModal()" class="text-gray-500 text-xl">×</button>
+                </div>
+                
+                <div class="mb-4">
+                    <p><strong>📞 Telepon:</strong> <span id="modalPhone"></span></p>
+                    <p><strong>🎂 Umur:</strong> <span id="modalAge"></span> tahun</p>
+                    <p><strong>👤 Jenis Kelamin:</strong> <span id="modalGender"></span></p>
+                    <p><strong>📍 Alamat:</strong> <span id="modalAddress"></span></p>
+                    <p><strong>🏥 Riwayat Sakit:</strong> <span id="modalMedicalHistory"></span></p>
+                    <p><strong>Total Kunjungan:</strong> <span id="modalTotal"></span></p>
+                </div>
+
+                <!-- Add Visit Form -->
+                <div class="mb-4 bg-blue-50 rounded-lg p-4">
+                    <h4 class="font-bold mb-2">➕ Tambah Kunjungan</h4>
+                    <form id="visitForm" class="space-y-3">
+                        <textarea id="visitComplaint" placeholder="Keluhan" required rows="2"
+                                  class="w-full px-3 py-2 border rounded"></textarea>
+                        <textarea id="visitTreatment" placeholder="Treatment" required rows="2"
+                                  class="w-full px-3 py-2 border rounded"></textarea>
+                        <div class="grid grid-cols-2 gap-3">
+                            <textarea id="visitMedication" placeholder="Obat" rows="2"
+                                      class="px-3 py-2 border rounded"></textarea>
+                            <textarea id="visitNotes" placeholder="Catatan" rows="2"
+                                      class="px-3 py-2 border rounded"></textarea>
+                        </div>
+                        <button type="submit" class="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700">
+                            💾 Simpan Kunjungan
+                        </button>
+                    </form>
+                </div>
+
+                <!-- Visit History -->
+                <div>
+                    <h4 class="font-bold mb-2">📋 Riwayat Kunjungan</h4>
+                    <div id="visitHistory" class="space-y-2 max-h-40 overflow-y-auto"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Delete Modal -->
+        <div id="deleteModal" class="fixed inset-0 bg-black bg-opacity-50 hidden items-center justify-center z-50">
+            <div class="bg-white rounded-xl p-6 max-w-md mx-4">
+                <div class="text-center">
+                    <div class="text-4xl mb-2">⚠️</div>
+                    <h3 class="text-lg font-bold mb-2">Hapus Pasien?</h3>
+                    <p class="text-gray-600 mb-4" id="deleteName"></p>
+                    <div class="flex gap-3 justify-center">
+                        <button onclick="closeDeleteModal()" class="bg-gray-500 text-white px-4 py-2 rounded">
+                            Batal
+                        </button>
+                        <button onclick="confirmDelete()" class="bg-red-600 text-white px-4 py-2 rounded">
+                            🗑️ Hapus
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let patients = [
+            {
+                id: 1,
+                name: "Sari Wijaya",
+                phone: "081234567890",
+                age: 35,
+                gender: "👩 Perempuan",
+                address: "Jl. Merdeka No. 15, Ambon",
+                medicalHistory: "Diabetes tipe 2, alergi penisilin",
+                visits: [
+                    {
+                        date: "2024-01-15",
+                        complaint: "Sakit gigi geraham kiri",
+                        treatment: "Pembersihan karang gigi dan tambal gigi",
+                        medication: "Asam Mefenamat 500mg 3x1",
+                        notes: "Hindari makanan keras"
+                    }
+                ]
+            },
+            {
+                id: 2,
+                name: "Ahmad Rizki",
+                phone: "082345678901",
+                age: 28,
+                gender: "👨 Laki-laki",
+                address: "Jl. Pattimura No. 23, Ambon",
+                medicalHistory: "",
+                visits: [
+                    {
+                        date: "2024-01-12",
+                        complaint: "Gigi berlubang",
+                        treatment: "Tambal gigi dengan resin komposit",
+                        medication: "Ibuprofen 400mg bila sakit",
+                        notes: "Jangan mengunyah 2 jam"
+                    }
+                ]
+            }
+        ];
+
+        let currentPatientId = null;
+        let deletePatientId = null;
+
+        function init() {
+            displayPatients();
+            updateStats();
+        }
+
+        function showView(view) {
+            document.getElementById('patientsView').classList.toggle('hidden', view !== 'patients');
+            document.getElementById('addView').classList.toggle('hidden', view !== 'add');
+            
+            document.getElementById('patientsBtn').className = view === 'patients' 
+                ? 'px-4 py-2 rounded font-medium bg-blue-600 text-white'
+                : 'px-4 py-2 rounded font-medium text-gray-600';
+            document.getElementById('addBtn').className = view === 'add' 
+                ? 'px-4 py-2 rounded font-medium bg-blue-600 text-white'
+                : 'px-4 py-2 rounded font-medium text-gray-600';
+        }
+
+        function displayPatients(filtered = null) {
+            const list = document.getElementById('patientsList');
+            const patientsToShow = filtered || patients;
+            
+            if (patientsToShow.length === 0) {
+                list.innerHTML = '<p class="text-center text-gray-500 py-4">Tidak ada pasien</p>';
+                return;
+            }
+
+            list.innerHTML = patientsToShow.map(patient => `
+                <div class="border rounded-lg p-4 mb-3 hover:shadow-md">
+                    <div class="flex justify-between items-start">
+                        <div class="cursor-pointer flex-1" onclick="openModal(${patient.id})">
+                            <h3 class="font-bold text-lg">${patient.name}</h3>
+                            <p class="text-gray-600">📞 ${patient.phone} • 🎂 ${patient.age} tahun • ${patient.gender}</p>
+                            <p class="text-gray-600">📍 ${patient.address}</p>
+                            ${patient.medicalHistory ? `<p class="text-orange-600 text-sm">🏥 ${patient.medicalHistory}</p>` : ''}
+                            <p class="text-sm text-blue-600">${patient.visits.length} kunjungan</p>
+                        </div>
+                        <button onclick="deletePatient(${patient.id})" 
+                                class="text-red-600 hover:bg-red-50 p-2 rounded">
+                            🗑️
+                        </button>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        function searchPatients() {
+            const term = document.getElementById('searchInput').value.toLowerCase();
+            if (!term) {
+                displayPatients();
+                return;
+            }
+            const filtered = patients.filter(p => 
+                p.name.toLowerCase().includes(term) || p.phone.includes(term)
+            );
+            displayPatients(filtered);
+        }
+
+        function updateStats() {
+            document.getElementById('totalPatients').textContent = patients.length;
+            document.getElementById('totalVisits').textContent = 
+                patients.reduce((sum, p) => sum + p.visits.length, 0);
+        }
+
+        document.getElementById('addForm').addEventListener('submit', function(e) {
+            e.preventDefault();
+            
+            const newPatient = {
+                id: Date.now(),
+                name: document.getElementById('name').value,
+                phone: document.getElementById('phone').value,
+                age: parseInt(document.getElementById('age').value),
+                gender: document.getElementById('gender').value,
+                address: document.getElementById('address').value,
+                medicalHistory: document.getElementById('medicalHistory').value,
+                visits: [{
+                    date: new Date().toISOString().split('T')[0],
+                    complaint: document.getElementById('complaint').value,
+                    treatment: document.getElementById('treatment').value,
+                    medication: document.getElementById('medication').value,
+                    notes: document.getElementById('notes').value
+                }]
+            };
+
+            patients.unshift(newPatient);
+            this.reset();
+            showView('patients');
+            displayPatients();
+            updateStats();
+        });
+
+        function openModal(patientId) {
+            const patient = patients.find(p => p.id === patientId);
+            if (!patient) return;
+
+            currentPatientId = patientId;
+            document.getElementById('modalName').textContent = patient.name;
+            document.getElementById('modalPhone').textContent = patient.phone;
+            document.getElementById('modalAge').textContent = patient.age;
+            document.getElementById('modalGender').textContent = patient.gender;
+            document.getElementById('modalAddress').textContent = patient.address;
+            document.getElementById('modalMedicalHistory').textContent = patient.medicalHistory || 'Tidak ada riwayat sakit';
+            document.getElementById('modalTotal').textContent = patient.visits.length;
+            
+            displayVisitHistory(patient.visits);
+            document.getElementById('modal').classList.remove('hidden');
+            document.getElementById('modal').classList.add('flex');
+        }
+
+        function displayVisitHistory(visits) {
+            const history = document.getElementById('visitHistory');
+            if (visits.length === 0) {
+                history.innerHTML = '<p class="text-gray-500">Belum ada kunjungan</p>';
+                return;
+            }
+
+            history.innerHTML = visits.map(visit => `
+                <div class="bg-gray-50 rounded p-3 text-sm">
+                    <p><strong>📅 ${visit.date}</strong></p>
+                    <p><strong>Keluhan:</strong> ${visit.complaint}</p>
+                    <p><strong>Treatment:</strong> ${visit.treatment}</p>
+                    ${visit.medication ? `<p><strong>💊 Obat:</strong> ${visit.medication}</p>` : ''}
+                    ${visit.notes ? `<p><strong>📝 Catatan:</strong> ${visit.notes}</p>` : ''}
+                </div>
+            `).join('');
+        }
+
+        document.getElementById('visitForm').addEventListener('submit', function(e) {
+            e.preventDefault();
+            
+            const patient = patients.find(p => p.id === currentPatientId);
+            if (!patient) return;
+
+            const newVisit = {
+                date: new Date().toISOString().split('T')[0],
+                complaint: document.getElementById('visitComplaint').value,
+                treatment: document.getElementById('visitTreatment').value,
+                medication: document.getElementById('visitMedication').value,
+                notes: document.getElementById('visitNotes').value
+            };
+
+            patient.visits.unshift(newVisit);
+            document.getElementById('modalTotal').textContent = patient.visits.length;
+            displayVisitHistory(patient.visits);
+            this.reset();
+            displayPatients();
+            updateStats();
+        });
+
+        function closeModal() {
+            document.getElementById('modal').classList.add('hidden');
+            document.getElementById('modal').classList.remove('flex');
+        }
+
+        function deletePatient(patientId) {
+            const patient = patients.find(p => p.id === patientId);
+            if (!patient) return;
+            
+            deletePatientId = patientId;
+            document.getElementById('deleteName').textContent = patient.name;
+            document.getElementById('deleteModal').classList.remove('hidden');
+            document.getElementById('deleteModal').classList.add('flex');
+        }
+
+        function closeDeleteModal() {
+            document.getElementById('deleteModal').classList.add('hidden');
+            document.getElementById('deleteModal').classList.remove('flex');
+        }
+
+        function confirmDelete() {
+            const index = patients.findIndex(p => p.id === deletePatientId);
+            if (index !== -1) {
+                patients.splice(index, 1);
+                displayPatients();
+                updateStats();
+            }
+            closeDeleteModal();
+        }
+
+        // Close modals on outside click
+        document.getElementById('modal').addEventListener('click', function(e) {
+            if (e.target === this) closeModal();
+        });
+
+        document.getElementById('deleteModal').addEventListener('click', function(e) {
+            if (e.target === this) closeDeleteModal();
+        });
+
+        init();
+    </script>
+<script>(function(){function c(){var b=a.contentDocument||a.contentWindow.document;if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'97cde1d4719fa082',t:'MTc1NzQ5NjM2OS4wMDAwMDA='};var a=document.createElement('script');a.nonce='';a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
+</html>
